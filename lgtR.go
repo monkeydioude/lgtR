@@ -89,8 +89,13 @@ func (w *Watcher) watch(ctx context.Context) {
 		}
 	}
 
-	<-time.After(w.WatchTimer)
-	w.watch(ctx)
+	select {
+	case <-time.After(w.WatchTimer):
+		w.watch(ctx)
+	case <-ctx.Done():
+		return
+	}
+
 }
 
 func init() {
