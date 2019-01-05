@@ -1,6 +1,7 @@
 package lgtR
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -28,17 +29,20 @@ type Watcher struct {
 	NewPostCb  func(*reddit.Post)
 	WatchTimer time.Duration
 	Bot        reddit.Bot
+	Cancel     context.CancelFunc
 }
 
 func cachePathFromSub(sub string) string {
 	return strings.Replace(sub, "/", "", -1)
 }
 
-func (h *Hot) WatchMe(sub string, cb func(*reddit.Post)) {
+func (h *Hot) WatchMe(sub string, cb func(*reddit.Post)) *Watcher {
 	// if room does not exist blabla
 	hd := make(hotData)
 	hc := cache.NewFileCache(h.BaseCachePath+cachePathFromSub(sub), &hd)
 	hc.Parse()
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	w := &Watcher{
 		Cache:      hc,
@@ -46,9 +50,11 @@ func (h *Hot) WatchMe(sub string, cb func(*reddit.Post)) {
 		NewPostCb:  cb,
 		Bot:        h.Bot,
 		WatchTimer: h.WatchTimer,
+		Cancel:     cancelFunc,
 	}
 
-	go w.watch()
+	go w.watch(ctx)
+	return w
 }
 
 func compareAndPostData(from, trial hotData, cb func(*reddit.Post)) bool {
@@ -62,7 +68,7 @@ func compareAndPostData(from, trial hotData, cb func(*reddit.Post)) bool {
 	return hasModif
 }
 
-func (w *Watcher) watch() {
+func (w *Watcher) watch(ctx context.Context) {
 	fmt.Printf("Checking %s !\n", w.SubPath)
 	hd := make(hotData)
 
@@ -84,7 +90,7 @@ func (w *Watcher) watch() {
 	}
 
 	<-time.After(w.WatchTimer)
-	w.watch()
+	w.watch(ctx)
 }
 
 func init() {
