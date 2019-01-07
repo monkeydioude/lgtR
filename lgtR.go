@@ -12,7 +12,7 @@ import (
 	"github.com/turnage/graw/reddit"
 )
 
-type hotData map[string]*reddit.Post
+type hotData map[string]uint64
 type hotCache cache.FileCache
 
 var agentFilePath string
@@ -30,6 +30,7 @@ type Watcher struct {
 	WatchTimer time.Duration
 	Bot        reddit.Bot
 	Cancel     context.CancelFunc
+	Start      bool
 }
 
 func cachePathFromSub(sub string) string {
@@ -51,39 +52,40 @@ func (h *Hot) WatchMe(sub string, cb func(*reddit.Post)) *Watcher {
 		Bot:        h.Bot,
 		WatchTimer: h.WatchTimer,
 		Cancel:     cancelFunc,
+		Start:      false,
 	}
 
 	go w.watch(ctx)
 	return w
 }
 
-func compareAndPostData(from, trial hotData, cb func(*reddit.Post)) bool {
+func (w *Watcher) compareAndPostData(trial []*reddit.Post) bool {
+	from := *(w.Cache.GetData().(*hotData))
 	hasModif := false
-	for ID, post := range trial {
-		if _, ok := from[ID]; !ok {
-			cb(post)
+	for _, post := range trial {
+		if _, ok := from[post.ID]; !ok {
+			if w.Start == true {
+				w.NewPostCb(post)
+			}
 			hasModif = true
+			from[post.ID] = post.CreatedUTC
 		}
 	}
+	w.Start = true
 	return hasModif
 }
 
 func (w *Watcher) watch(ctx context.Context) {
 	fmt.Printf("Checking %s !\n", w.SubPath)
-	hd := make(hotData)
 
-	harvest, err := w.Bot.ListingWithParams(w.SubPath, map[string]string{"limit": "20"})
+	harvest, err := w.Bot.ListingWithParams(w.SubPath, map[string]string{"limit": "5"})
 	if err != nil {
 		fmt.Println("Failed to fetch: ", err)
 		return
 	}
 
-	for _, post := range harvest.Posts {
-		hd[post.ID] = post
-	}
-
-	if compareAndPostData(*(w.Cache.GetData().(*hotData)), hd, w.NewPostCb) {
-		if err := w.Cache.Write(&hd, 0); err != nil {
+	if w.compareAndPostData(harvest.Posts) {
+		if err := w.Cache.Write(w.Cache.Data, 0); err != nil {
 			fmt.Println("Failed to store in cache: ", err)
 			return
 		}
