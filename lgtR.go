@@ -78,7 +78,7 @@ func (w *Watcher) compareAndPostData(trial []*reddit.Post) bool {
 func (w *Watcher) watch(ctx context.Context) {
 	fmt.Printf("Checking %s !\n", w.SubPath)
 
-	harvest, err := w.Bot.ListingWithParams(w.SubPath, map[string]string{"limit": "5"})
+	harvest, err := w.Bot.ListingWithParams(w.SubPath, map[string]string{"limit": "20"})
 	if err != nil {
 		fmt.Println("Failed to fetch: ", err)
 		return
