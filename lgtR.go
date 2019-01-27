@@ -75,29 +75,35 @@ func (w *Watcher) compareAndPostData(trial []*reddit.Post) bool {
 }
 
 func (w *Watcher) watch(ctx context.Context) {
-	log.Printf("[INFO] Checking %s !\n", w.SubPath)
+	timer := 0 * time.Second
+
+	if w.Start {
+		timer = w.WatchTimer
+	}
+	select {
+	case <-time.After(timer):
+		log.Printf("[INFO] Checking %s !\n", w.SubPath)
+	case <-ctx.Done():
+		log.Println("[INFO] lgtR context done")
+		return
+	}
 
 	harvest, err := w.Bot.ListingWithParams(w.SubPath, map[string]string{"limit": "10"})
 	if err != nil {
 		log.Println("[ERR ] Failed to fetch: ", err)
+		w.watch(ctx)
 		return
 	}
 
 	if w.compareAndPostData(harvest.Posts) {
 		if err := w.Cache.Write(w.Cache.Data, 0); err != nil {
 			log.Println("[ERR ] Failed to store in cache: ", err)
+			w.watch(ctx)
 			return
 		}
 	}
 
-	select {
-	case <-time.After(w.WatchTimer):
-		w.watch(ctx)
-	case <-ctx.Done():
-		log.Println("[INFO] lgtR context done")
-		return
-	}
-
+	w.watch(ctx)
 }
 
 func init() {
