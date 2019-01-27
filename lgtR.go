@@ -2,7 +2,6 @@ package lgtR
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -76,17 +75,17 @@ func (w *Watcher) compareAndPostData(trial []*reddit.Post) bool {
 }
 
 func (w *Watcher) watch(ctx context.Context) {
-	fmt.Printf("Checking %s !\n", w.SubPath)
+	log.Printf("[INFO] Checking %s !\n", w.SubPath)
 
 	harvest, err := w.Bot.ListingWithParams(w.SubPath, map[string]string{"limit": "10"})
 	if err != nil {
-		fmt.Println("Failed to fetch: ", err)
+		log.Println("[ERR ] Failed to fetch: ", err)
 		return
 	}
 
 	if w.compareAndPostData(harvest.Posts) {
 		if err := w.Cache.Write(w.Cache.Data, 0); err != nil {
-			fmt.Println("Failed to store in cache: ", err)
+			log.Println("[ERR ] Failed to store in cache: ", err)
 			return
 		}
 	}
@@ -110,7 +109,7 @@ func init() {
 func New(baseCachePath string, watchTimer time.Duration) *Hot {
 	bot, err := reddit.NewBotFromAgentFile(agentFilePath, 0)
 	if err != nil {
-		fmt.Println("Failed to fetch: ", err)
+		log.Println("[ERR ] Failed to fetch: ", err)
 		return nil
 	}
 	os.MkdirAll(baseCachePath, 0766)
