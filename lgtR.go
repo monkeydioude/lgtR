@@ -94,6 +94,7 @@ func (w *Watcher) watch(ctx context.Context) {
 	case <-time.After(w.WatchTimer):
 		w.watch(ctx)
 	case <-ctx.Done():
+		log.Println("[INFO] lgtR context done")
 		return
 	}
 
