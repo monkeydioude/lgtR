@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/monkeydioude/tools/cache"
-	"github.com/turnage/graw/reddit"
+	"github.com/monkeydioude/graw/reddit"
 )
 
 type hotData map[string]uint64
